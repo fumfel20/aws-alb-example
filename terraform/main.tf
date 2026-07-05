@@ -14,7 +14,7 @@ locals {
 resource "aws_key_pair" "my_local_key" {
   count      = local.has_public_key ? 1 : 0
   key_name   = "my-ssh-key"
-  public_key = file(local.public_key_path)
+  public_key = local.has_public_key ? file(local.public_key_path) : null
 }
 
 data "aws_subnets" "default" {

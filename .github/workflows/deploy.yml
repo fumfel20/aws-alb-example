@@ -1,0 +1,52 @@
+name: Deploy to AWS (Terraform + Ansible)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fetch repository code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS access
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-central-1
+
+    - name: Configure SSH for Ansible
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.EC2_HOST_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      # Note: The first time, you may not know the IP.
+      # You can also disable host_key checking in ansible.cfg.
+
+    - name: Install and configure Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init and Apply
+      run: |
+        cd terraform
+        terraform init
+        terraform apply -auto-approve
+
+    - name: Install Ansible
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ansible
+        ansible-galaxy collection install community.docker
+
+    - name: Run the Ansible Playbook
+      run: |
+        cd ansible
+        # Add SSH host key checking bypass for simplicity in CI
+        export ANSIBLE_HOST_KEY_CHECKING=False
+        ansible-playbook -i inventory.ini playbook.yml

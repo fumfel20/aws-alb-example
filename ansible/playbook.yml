@@ -1,0 +1,76 @@
+---
+
+- name: Configure EC2 and run the application in Docker
+  hosts: webservers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update apt cache and install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        update_cache: yes
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create a directory for the application
+      file:
+        path: /opt/app
+        state: directory
+        mode: '0755'
+
+    - name: Copy application files (Dockerfile and index.html)
+      copy:
+        src: ../app/
+        dest: /opt/app/
+
+    - name: Ensure python3-pip is installed
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Python SDK package
+      apt:
+        name: python3-docker
+        state: present
+        update_cache: yes
+
+    - name: Build the Docker image locally on the instance (CLI)
+      command: docker build -t my-app /opt/app
+
+    - name: Ensure app-container-1 is running (CLI)
+      shell: |
+        if [ "$(docker ps -q -f name=app-container-1)" ]; then
+          docker restart app-container-1
+        else
+          if [ "$(docker ps -aq -f name=app-container-1)" ]; then
+            docker rm -f app-container-1 || true
+          fi
+          docker run -d --name app-container-1 -p 8080:80 my-app
+        fi
+
+    - name: Ensure app-container-2 is running (CLI)
+      shell: |
+        if [ "$(docker ps -q -f name=app-container-2)" ]; then
+          docker restart app-container-2
+        else
+          if [ "$(docker ps -aq -f name=app-container-2)" ]; then
+            docker rm -f app-container-2 || true
+          fi
+          docker run -d --name app-container-2 -p 8081:80 my-app
+        fi

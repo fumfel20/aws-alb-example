@@ -6,17 +6,6 @@ data "aws_vpc" "default" {
   default = true
 }
 
-locals {
-  public_key_path = pathexpand("~/.ssh/id_ed25519.pub")
-  has_public_key  = fileexists(local.public_key_path)
-}
-
-resource "aws_key_pair" "my_local_key" {
-  count      = local.has_public_key ? 1 : 0
-  key_name   = "my-ssh-key"
-  public_key = local.has_public_key ? file(local.public_key_path) : null
-}
-
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
@@ -72,7 +61,6 @@ resource "aws_security_group" "alb" {
 resource "aws_instance" "web" {
   ami                    = "ami-06468be052a4195a6"
   instance_type          = "t3.small"
-  key_name               = length(aws_key_pair.my_local_key) > 0 ? aws_key_pair.my_local_key[0].key_name : null
   vpc_security_group_ids = [aws_security_group.ec2.id]
   tags = {
     Name = "Docker-Ansible-Host"

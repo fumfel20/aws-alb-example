@@ -29,14 +29,14 @@ jobs:
       # Note: The first time, you may not know the IP.
       # You can also disable host_key checking in ansible.cfg.
 
-#     - name: Install and configure Terraform
-#       uses: hashicorp/setup-terraform@v3
+    - name: Install and configure Terraform
+      uses: hashicorp/setup-terraform@v3
 
-#     - name: Terraform Init and Apply
-#       run: |
-#         cd terraform
-#         terraform init
-#         terraform apply -auto-approve
+    - name: Terraform Init and Apply
+      run: |
+        cd terraform
+        terraform init
+        terraform apply -auto-approve
 
     - name: Install Ansible
       run: |

@@ -14,7 +14,7 @@ data "aws_subnets" "default" {
 }
 
 resource "aws_security_group" "ec2" {
-  name        = "ec2-sg"
+  name        = "ec2-sg-alb-example"
   description = "Allow SSH and application traffic"
 
   ingress {
@@ -40,7 +40,7 @@ resource "aws_security_group" "ec2" {
 }
 
 resource "aws_security_group" "alb" {
-  name        = "alb-sg"
+  name        = "alb-sg-aws-example"
   description = "Allow HTTP traffic to the application load balancer"
 
   ingress {

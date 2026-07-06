@@ -129,7 +129,7 @@ resource "aws_lb_listener" "front_end" {
 resource "local_file" "ansible_inventory" {
   content  = <<EOF
 [webservers]
-${aws_instance.web.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa
+${aws_instance.web.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519
 EOF
   filename = "../ansible/inventory.ini"
 }

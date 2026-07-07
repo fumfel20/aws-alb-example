@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/random"
       version = ">= 3.0.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = ">= 4.0.0"
+    }
   }
 
   backend "s3" {
@@ -80,9 +84,19 @@ resource "random_string" "key_suffix" {
   upper   = false
 }
 
+resource "tls_private_key" "generated" {
+  count     = trimspace(var.ssh_public_key) != "" ? 0 : 1
+  algorithm = "ED25519"
+}
+
+locals {
+  normalized_ssh_public_key = trimspace(var.ssh_public_key)
+  effective_ssh_public_key  = local.normalized_ssh_public_key != "" ? local.normalized_ssh_public_key : tls_private_key.generated[0].public_key_openssh
+}
+
 resource "aws_key_pair" "deployer" {
   key_name   = "terraform-deployer-${random_string.key_suffix.result}"
-  public_key = var.ssh_public_key
+  public_key = local.effective_ssh_public_key
 }
 
 resource "aws_instance" "web" {

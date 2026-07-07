@@ -25,28 +25,46 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan -H ${{ secrets.EC2_HOST_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-      # Note: The first time, you may not know the IP.
-      # You can also disable host_key checking in ansible.cfg.
 
     - name: Install and configure Terraform
       uses: hashicorp/setup-terraform@v3
 
-    - name: Terraform Init and Apply
+    - name: Terraform Init
+      env:
+        TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
       run: |
         cd terraform
         terraform init
+
+    - name: Terraform Plan
+      env:
+        TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+      run: |
+        cd terraform
+        terraform plan
+
+    - name: Terraform Apply
+      env:
+        TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+      run: |
+        cd terraform
         terraform apply -auto-approve
 
-    - name: Install Ansible
+    - name: Add EC2 host key to known hosts
+      run: |
+        cd terraform
+        HOST_IP=$(terraform output -raw ec2_public_ip)
+        mkdir -p ~/.ssh
+        ssh-keyscan -H "$HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+    - name: Install Ansible and Docker collection
       run: |
         sudo apt-get update
-        sudo apt-get install -y ansible
+        sudo apt-get install -y ansible python3-pip
         ansible-galaxy collection install community.docker
 
     - name: Run the Ansible Playbook
       run: |
         cd ansible
-        # Add SSH host key checking bypass for simplicity in CI
         export ANSIBLE_HOST_KEY_CHECKING=False
         ansible-playbook -i inventory.ini playbook.yml

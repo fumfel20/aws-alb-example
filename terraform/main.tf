@@ -1,9 +1,16 @@
 terraform {
+  required_providers {
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0.0"
+    }
+  }
+
   backend "s3" {
-    bucket         = "konrad-terraform-state-2026" # Dokładnie ta sama nazwa co w bootstrapie
-    key            = "global/s3/terraform.tfstate"
-    region         = "eu-west-1"
-    encrypt        = true
+    bucket  = "konrad-terraform-state-2026" # Dokładnie ta sama nazwa co w bootstrapie
+    key     = "global/s3/terraform.tfstate"
+    region  = "eu-west-1"
+    encrypt = true
   }
 }
 
@@ -67,9 +74,21 @@ resource "aws_security_group" "alb" {
   }
 }
 
+resource "random_string" "key_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+resource "aws_key_pair" "deployer" {
+  key_name   = "terraform-deployer-${random_string.key_suffix.result}"
+  public_key = var.ssh_public_key
+}
+
 resource "aws_instance" "web" {
   ami                    = "ami-06468be052a4195a6"
   instance_type          = "t3.small"
+  key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.ec2.id]
   tags = {
     Name = "Docker-Ansible-Host"
@@ -129,7 +148,7 @@ resource "aws_lb_listener" "front_end" {
 resource "local_file" "ansible_inventory" {
   content  = <<EOF
 [webservers]
-${aws_instance.web.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519
+${aws_instance.web.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519 ansible_python_interpreter=/usr/bin/python3
 EOF
   filename = "../ansible/inventory.ini"
 }

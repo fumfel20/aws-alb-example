@@ -14,11 +14,9 @@
           - curl
           - gnupg
           - lsb-release
+          - docker.io
+          - python3-pip
         update_cache: yes
-
-    - name: Install Docker
-      apt:
-        name: docker.io
         state: present
 
     - name: Ensure Docker is running
@@ -26,6 +24,10 @@
         name: docker
         state: started
         enabled: yes
+
+    - name: Install Python Docker SDK for Ansible Docker modules
+      pip:
+        name: docker
 
     - name: Create a directory for the application
       file:
@@ -37,40 +39,30 @@
       copy:
         src: ../app/
         dest: /opt/app/
+        owner: root
+        group: root
+        mode: '0644'
 
-    - name: Ensure python3-pip is installed
-      apt:
-        name: python3-pip
+    - name: Build the Docker image locally on the instance
+      community.docker.docker_image:
+        path: /opt/app
+        name: my-app
         state: present
-        update_cache: yes
 
-    - name: Install Docker Python SDK package
-      apt:
-        name: python3-docker
-        state: present
-        update_cache: yes
+    - name: Ensure app-container-1 is running on port 8080
+      community.docker.docker_container:
+        name: app-container-1
+        image: my-app:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8080:80"
 
-    - name: Build the Docker image locally on the instance (CLI)
-      command: docker build -t my-app /opt/app
-
-    - name: Ensure app-container-1 is running (CLI)
-      shell: |
-        if [ "$(docker ps -q -f name=app-container-1)" ]; then
-          docker restart app-container-1
-        else
-          if [ "$(docker ps -aq -f name=app-container-1)" ]; then
-            docker rm -f app-container-1 || true
-          fi
-          docker run -d --name app-container-1 -p 8080:80 my-app
-        fi
-
-    - name: Ensure app-container-2 is running (CLI)
-      shell: |
-        if [ "$(docker ps -q -f name=app-container-2)" ]; then
-          docker restart app-container-2
-        else
-          if [ "$(docker ps -aq -f name=app-container-2)" ]; then
-            docker rm -f app-container-2 || true
-          fi
-          docker run -d --name app-container-2 -p 8081:80 my-app
-        fi
+    - name: Ensure app-container-2 is running on port 8081
+      community.docker.docker_container:
+        name: app-container-2
+        image: my-app:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8081:80"

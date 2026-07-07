@@ -85,13 +85,12 @@ resource "random_string" "key_suffix" {
 }
 
 resource "tls_private_key" "generated" {
-  count     = trimspace(var.ssh_public_key) != "" ? 0 : 1
   algorithm = "ED25519"
 }
 
 locals {
   normalized_ssh_public_key = trimspace(var.ssh_public_key)
-  effective_ssh_public_key  = local.normalized_ssh_public_key != "" ? local.normalized_ssh_public_key : tls_private_key.generated[0].public_key_openssh
+  effective_ssh_public_key  = local.normalized_ssh_public_key != "" ? local.normalized_ssh_public_key : tls_private_key.generated.public_key_openssh
 }
 
 resource "aws_key_pair" "deployer" {

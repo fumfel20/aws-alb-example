@@ -62,7 +62,7 @@ jobs:
     - name: Save generated SSH private key for later steps
       run: |
         cd terraform
-        terraform output -raw private_key_pem > ~/.ssh/id_ed25519
+        terraform output -raw private_key_openssh > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
 
     - name: Add EC2 host key to known hosts

@@ -12,3 +12,9 @@ output "key_pair_name" {
   description = "Name of the EC2 key pair created by Terraform."
   value       = aws_key_pair.deployer.key_name
 }
+
+output "private_key_pem" {
+  description = "Private key used for SSH access to the EC2 instance."
+  value       = tls_private_key.generated[0].private_key_pem
+  sensitive   = true
+}

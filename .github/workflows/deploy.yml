@@ -70,8 +70,22 @@ jobs:
         sudo apt-get install -y ansible python3-pip
         ansible-galaxy collection install community.docker
 
+    - name: Wait for EC2 SSH to become available
+      run: |
+        cd terraform
+        HOST_IP=$(terraform output -raw ec2_public_ip)
+        for i in {1..20}; do
+          if ssh -o BatchMode=yes -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@$HOST_IP "echo ready" 2>/dev/null; then
+            echo "SSH is ready"
+            break
+          fi
+          echo "Waiting for SSH..."
+          sleep 10
+        done
+
     - name: Run the Ansible Playbook
       run: |
         cd ansible
         export ANSIBLE_HOST_KEY_CHECKING=False
+        export ANSIBLE_SSH_ARGS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         ansible-playbook -i inventory.ini playbook.yml

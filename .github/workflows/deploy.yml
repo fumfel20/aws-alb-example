@@ -83,7 +83,6 @@ jobs:
         cd terraform
         HOST_IP=$(terraform output -raw ec2_public_ip)
         echo "Host IP: $HOST_IP"
-        echo "Private key file:" ~/.ssh/id_ed25519
         ls -l ~/.ssh/id_ed25519
         ssh-keygen -y -f ~/.ssh/id_ed25519 > /tmp/public_key.pub
         echo "Public key preview:" && cat /tmp/public_key.pub
@@ -95,4 +94,4 @@ jobs:
         cd ansible
         export ANSIBLE_HOST_KEY_CHECKING=False
         export ANSIBLE_SSH_ARGS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o ConnectTimeout=10'
-        ansible-playbook -vvv -i inventory.ini -e 'ansible_user=ubuntu ansible_ssh_private_key_file=/home/runner/.ssh/id_ed25519' playbook.yml
+        ansible-playbook -vvv -i inventory.ini playbook.yml

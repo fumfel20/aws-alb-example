@@ -103,8 +103,20 @@ resource "aws_instance" "web" {
   instance_type          = "t3.small"
   key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.ec2.id]
+  
+  user_data = <<-EOF
+              #!/bin/bash
+              apt-get update
+              apt-get install -y docker.io
+              systemctl start docker
+              systemctl enable docker
+              usermod -aG docker ubuntu
+              mkdir -p /opt/app
+              chown -R ubuntu:ubuntu /opt/app
+              EOF
+
   tags = {
-    Name = "Docker-Ansible-Host"
+    Name = "Docker-Host"
   }
 }
 
@@ -158,10 +170,3 @@ resource "aws_lb_listener" "front_end" {
   }
 }
 
-resource "local_file" "ansible_inventory" {
-  content  = <<EOF
-[webservers]
-${aws_instance.web.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519 ansible_python_interpreter=/usr/bin/python3
-EOF
-  filename = "../ansible/inventory.ini"
-}

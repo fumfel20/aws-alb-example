@@ -72,26 +72,38 @@ jobs:
         mkdir -p ~/.ssh
         ssh-keyscan -H "$HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-    - name: Install Ansible and Docker collection
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ansible python3-pip
-        ansible-galaxy collection install community.docker
-
-    - name: Debug SSH key and EC2 connection
+    - name: Wait for instance and Docker initialization
       run: |
         cd terraform
         HOST_IP=$(terraform output -raw ec2_public_ip)
-        echo "Host IP: $HOST_IP"
-        ls -l ~/.ssh/id_ed25519
-        ssh-keygen -y -f ~/.ssh/id_ed25519 > /tmp/public_key.pub
-        echo "Public key preview:" && cat /tmp/public_key.pub
-        echo "Trying SSH to ubuntu..."
-        ssh -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_ed25519 ubuntu@$HOST_IP 'echo ok' || true
+        echo "Waiting for instance SSH and Docker to be ready on $HOST_IP..."
+        for i in {1..24}; do
+          if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -i ~/.ssh/id_ed25519 ubuntu@$HOST_IP "test -d /opt/app && docker ps >/dev/null 2>&1"; then
+            echo "Instance and Docker are ready!"
+            exit 0
+          fi
+          echo "Waiting... ($((i*5))s)"
+          sleep 5
+        done
+        echo "Timeout waiting for instance to initialize."
+        exit 1
 
-    - name: Run the Ansible Playbook
+    - name: Copy application files to EC2
       run: |
-        cd ansible
-        export ANSIBLE_HOST_KEY_CHECKING=False
-        export ANSIBLE_SSH_ARGS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o ConnectTimeout=10'
-        ansible-playbook -vvv -i inventory.ini playbook.yml
+        cd terraform
+        HOST_IP=$(terraform output -raw ec2_public_ip)
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 -r ../app/* ubuntu@$HOST_IP:/opt/app/
+
+    - name: Build and run containers on EC2
+      run: |
+        cd terraform
+        HOST_IP=$(terraform output -raw ec2_public_ip)
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@$HOST_IP "
+          cd /opt/app
+          docker build -t my-app:latest .
+          docker stop app-container-1 app-container-2 2>/dev/null || true
+          docker rm app-container-1 app-container-2 2>/dev/null || true
+          docker run -d --name app-container-1 -p 8080:80 --restart always my-app:latest
+          docker run -d --name app-container-2 -p 8081:80 --restart always my-app:latest
+        "
+
